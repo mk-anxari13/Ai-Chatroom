@@ -15,10 +15,9 @@ export async function executeTool(name: ToolName, input?: string) {
         // Very small sandboxed eval for basic arithmetic only
         // Allow digits, whitespace, + - * / ( ) and decimals
         const safe = expr.replace(/[^0-9+\-*/(). %]/g, "");
-        // eslint-disable-next-line no-new-func
         const result = Function(`"use strict"; return (${safe})`)();
         return { success: true, result: String(result) };
-      } catch (err) {
+      } catch {
         return { success: false, error: "Calculator error" };
       }
     }
@@ -52,6 +51,7 @@ export async function executeTool(name: ToolName, input?: string) {
       return { success: true, result: String(n) };
     }
     case "uuid": {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return { success: true, result: (globalThis.crypto && (globalThis.crypto as any).randomUUID ? (globalThis.crypto as any).randomUUID() : `${Date.now()}-${Math.random()}`) };
     }
     case "stats": {

@@ -10,6 +10,7 @@ function createNoopClient() {
     auth: {
       getUser: async () => ({ data: { user: null }, error: null }),
     },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 }
 

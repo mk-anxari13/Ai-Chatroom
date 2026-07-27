@@ -35,7 +35,7 @@ export function AuthForm() {
         ? await supabase.auth.signInWithPassword({ email, password })
         : await supabase.auth.signUp({ email, password });
 
-    const { data, error } = result;
+    const { error } = result;
 
     if (error) {
       setMessage(error.message);
