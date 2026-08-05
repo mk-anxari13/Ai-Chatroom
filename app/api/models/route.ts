@@ -1,27 +1,24 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/models", {
-      headers: {
-        Accept: "application/json",
-      },
-    });
+    const supabase = await createClient();
 
-    if (!response.ok) {
-      return NextResponse.json({ error: "Failed to fetch models" }, { status: response.status });
+    const { data, error } = await supabase
+      .from("models")
+      .select("id, name, provider, last_verified_at")
+      .order("name", { ascending: true });
+
+    if (error) {
+      // Table may not exist yet — return empty list gracefully
+      console.warn("models table error:", error.message);
+      return NextResponse.json({ models: [] });
     }
 
-    const data = await response.json();
-    const models = (data.data || [])
-      .filter((model: { id?: string }) => model.id?.startsWith("nvidia/") && model.id?.endsWith(":free"))
-      .map((model: { id: string }) => ({
-        id: model.id,
-        name: model.id.replace("nvidia/", "").replace(":free", ""),
-      }));
-
-    return NextResponse.json({ models });
-  } catch {
-    return NextResponse.json({ error: "Unable to load models" }, { status: 500 });
+    return NextResponse.json({ models: data ?? [] });
+  } catch (err) {
+    console.error("GET /api/models error:", err);
+    return NextResponse.json({ models: [] });
   }
 }

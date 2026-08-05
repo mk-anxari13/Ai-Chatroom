@@ -4,20 +4,39 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50",
+  // Base: Fluent interactive element — smooth transitions, focus ring
+  [
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap",
+    "text-sm font-medium select-none",
+    "transition-all duration-[100ms] ease-out",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0078D4] focus-visible:ring-offset-1",
+    "disabled:pointer-events-none disabled:opacity-40",
+    "cursor-pointer",
+  ].join(" "),
   {
     variants: {
       variant: {
-        default: "bg-zinc-950 text-white hover:bg-zinc-800",
-        outline: "border border-zinc-200 bg-white hover:bg-zinc-100",
-        ghost: "hover:bg-zinc-100",
-        secondary: "bg-zinc-100 text-zinc-900 hover:bg-zinc-200",
+        // Fluent Accent Fill Button — primary CTA
+        default:
+          "bg-[#0078D4] text-white rounded-md hover:bg-[#106EBE] active:bg-[#005A9E] shadow-[0_1px_2px_rgba(0,0,0,0.12)]",
+        // Fluent Standard Button — secondary actions
+        outline:
+          "bg-white text-[#1A1A1A] border border-[#C7C7C7] rounded-md hover:bg-[#EBEBEB] active:bg-[#E5E5E5]",
+        // Fluent Subtle Button — low-emphasis, icon-adjacent
+        ghost:
+          "bg-transparent text-[#1A1A1A] rounded-md hover:bg-[#E5E5E5] active:bg-[#DCDCDC]",
+        // Fluent Secondary Button — muted actions
+        secondary:
+          "bg-[#EBEBEB] text-[#1A1A1A] rounded-md hover:bg-[#E5E5E5] active:bg-[#DCDCDC]",
+        // Fluent Danger Button
+        destructive:
+          "bg-[#C42B1C] text-white rounded-md hover:bg-[#A52110] active:bg-[#8A1B0D]",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-md px-3",
-        lg: "h-11 rounded-md px-8",
-        icon: "h-10 w-10",
+        default: "h-9 px-4 py-2 text-sm",
+        sm:      "h-7 px-3 text-xs rounded-md",
+        lg:      "h-10 px-6 text-sm",
+        icon:    "h-9 w-9 rounded-md",
       },
     },
     defaultVariants: {

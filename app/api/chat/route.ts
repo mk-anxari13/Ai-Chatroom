@@ -1,6 +1,9 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { streamText, tool, toUIMessageStream, createUIMessageStreamResponse, convertToModelMessages, isStepCount, type ToolSet } from "ai";
+import { streamText, tool, toUIMessageStream, createUIMessageStreamResponse, convertToModelMessages, isStepCount, type ToolSet, type UIMessage } from "ai";
 import { executeTool } from "@/lib/tools";
+import { createClient } from "@/lib/supabase/server";
+import { getTenantContext } from "@/lib/rbac";
+import { searchKnowledgeBaseWithShared } from "@/lib/knowledge/retrieval";
 import { z } from "zod";
 
 const openrouter = createOpenAI({
@@ -12,15 +15,57 @@ const openrouter = createOpenAI({
   },
 });
 
+interface PdfContext {
+  filename: string;
+  text: string;
+  pages: number;
+  truncated: boolean;
+}
+
 export async function POST(request: Request) {
   try {
-    const { messages, model, threadId, enabledTools } = await request.json();
+    const { messages, model, threadId, enabledTools, pdfContext } = await request.json() as {
+      messages: UIMessage[];
+      model: string;
+      threadId: string;
+      enabledTools?: Record<string, boolean>;
+      pdfContext?: PdfContext | null;
+    };
 
     if (!messages || !model || !threadId) {
       return new Response("Missing parameters", { status: 400 });
     }
 
-    const systemPrompt = "You are a helpful assistant. You have access to a set of tools that you can use to answer questions.";
+    const baseSystemPrompt =
+      "You are a helpful assistant with access to several tools.\n\n" +
+      "KNOWLEDGE BASE: When the user asks about company policies, procedures, or topics that may be in " +
+      "uploaded documents, use the searchKnowledgeBase tool. " +
+      "Results may come from two sources:\n" +
+      "  - The user's own tenant knowledge base (source: own)\n" +
+      "  - The enterprise-wide Shared Knowledge Base (source: shared)\n" +
+      "When you receive results from searchKnowledgeBase:\n" +
+      "- Answer naturally and thoroughly using the retrieved content.\n" +
+      "- At the end of your answer, add a 'Sources' section listing the document filenames.\n" +
+      "- For shared documents, append [Shared KB] after the filename, e.g. 'Policy Guide [Shared KB]'.\n" +
+      "- Example format: 'According to [Filename]:\\n\\n[answer]\\n\\nSources:\\n• [Filename]\\n• [Filename] [Shared KB]'\n" +
+      "- If the tool returns no results, answer from your general knowledge and mention no relevant documents were found.\n\n" +
+      "CHAT HISTORY: When you use the searchChatHistory tool and find results, after your answer include a " +
+      "section titled 'Related Conversations' that lists the found conversations with their titles and snippets.\n\n" +
+      "PDF FILES: You can also analyze PDF documents that users attach — answer questions about their content thoroughly.";
+
+    // Build system instructions: if a pdfContext was passed (fallback for models
+    // that don't natively support PDF file inputs), append the extracted text.
+    let systemPrompt = baseSystemPrompt;
+    if (pdfContext?.text) {
+      systemPrompt +=
+        `\n\n--- Attached PDF: ${pdfContext.filename} (${pdfContext.pages} page${pdfContext.pages === 1 ? "" : "s"}) ---\n` +
+        (pdfContext.truncated ? "(Note: text was truncated to 50,000 characters)\n" : "") +
+        pdfContext.text +
+        "\n--- End of PDF ---";
+    }
+
+    // Create supabase client once for this request (used by searchChatHistory)
+    const supabase = await createClient();
 
     const allTools = {
       calculator: tool({
@@ -38,25 +83,6 @@ export async function POST(request: Request) {
         inputSchema: z.object({}),
         execute: async () => {
           const res = await executeTool("time");
-          return res.success ? (res.result ?? "") : `Error: ${res.error ?? "Unknown error"}`;
-        },
-      }),
-      random: tool({
-        description: "Generate a random integer between a minimum and maximum value.",
-        inputSchema: z.object({
-          min: z.number().optional().describe("The lower bound of the random range. Defaults to 0."),
-          max: z.number().optional().describe("The upper bound of the random range. Defaults to 100."),
-        }),
-        execute: async ({ min, max }: { min?: number; max?: number }) => {
-          const res = await executeTool("random", JSON.stringify({ min, max }));
-          return res.success ? (res.result ?? "") : `Error: ${res.error ?? "Unknown error"}`;
-        },
-      }),
-      uuid: tool({
-        description: "Generate a random UUID.",
-        inputSchema: z.object({}),
-        execute: async () => {
-          const res = await executeTool("uuid");
           return res.success ? (res.result ?? "") : `Error: ${res.error ?? "Unknown error"}`;
         },
       }),
@@ -92,11 +118,157 @@ export async function POST(request: Request) {
           return res.success ? (res.result ?? "") : `Error: ${res.error ?? "Unknown error"}`;
         },
       }),
+      searchChatHistory: tool({
+        description: "Search the current user's previous conversations for relevant information. Use this when the user asks about past discussions, previous questions, or wants to find something they discussed before. Searches through thread titles and message content.",
+        inputSchema: z.object({
+          query: z.string().describe("The search query to find in the user's past conversations."),
+        }),
+        execute: async ({ query }: { query: string }) => {
+          try {
+            // Authenticate the caller
+            const { data: userData, error: authError } = await supabase.auth.getUser();
+            if (authError || !userData.user) {
+              return { results: [], error: "Not authenticated" };
+            }
+
+            const userId = userData.user.id;
+            const searchPattern = `%${query}%`;
+
+            // Search thread titles
+            const { data: threadMatches } = await supabase
+              .from("chat_threads")
+              .select("id, title")
+              .eq("user_id", userId)
+              .ilike("title", searchPattern)
+              .limit(5);
+
+            // Search message content (both user and assistant)
+            const { data: messageMatches } = await supabase
+              .from("messages")
+              .select("id, thread_id, role, content")
+              .ilike("content", searchPattern)
+              .limit(10);
+
+            if (!messageMatches && !threadMatches) {
+              return { results: [] };
+            }
+
+            // Fetch thread info for message matches
+            const messageThreadIds = (messageMatches ?? []).map((m: { thread_id: string }) => m.thread_id);
+            const threadTitleMatches = threadMatches?.map((t: { id: string }) => t.id) ?? [];
+            const allThreadIds = [...new Set([...messageThreadIds, ...threadTitleMatches])];
+
+            let threadMap: Record<string, { id: string; title: string; user_id: string }> = {};
+            if (allThreadIds.length > 0) {
+              const { data: threads } = await supabase
+                .from("chat_threads")
+                .select("id, title, user_id")
+                .eq("user_id", userId)
+                .in("id", allThreadIds);
+
+              if (threads) {
+                for (const t of threads as { id: string; title: string; user_id: string }[]) {
+                  threadMap[t.id] = t;
+                }
+              }
+            }
+
+            // Build results — thread title matches first, then message matches
+            interface SearchResult {
+              threadId: string;
+              threadTitle: string;
+              snippet: string;
+              messageId: string;
+              role: "user" | "assistant" | "thread";
+            }
+            const results: SearchResult[] = [];
+            const seenThreads = new Set<string>();
+
+            // Thread title matches
+            for (const t of (threadMatches ?? []) as { id: string; title: string }[]) {
+              if (!seenThreads.has(t.id)) {
+                seenThreads.add(t.id);
+                results.push({
+                  threadId: t.id,
+                  threadTitle: t.title,
+                  snippet: `Conversation titled: "${t.title}"`,
+                  messageId: "",
+                  role: "thread",
+                });
+              }
+            }
+
+            // Message matches
+            for (const m of (messageMatches ?? []) as { id: string; thread_id: string; role: string; content: string }[]) {
+              const thread = threadMap[m.thread_id];
+              if (!thread) continue; // not owned by this user (RLS fallback)
+              const snippetRaw = m.content.replace(/\[JSON_PARTS\]:.*/, "").trim();
+              const snippet = snippetRaw.length > 120
+                ? snippetRaw.slice(0, 120) + "…"
+                : snippetRaw;
+
+              // Deduplicate by thread if title already matched — still add message match
+              results.push({
+                threadId: m.thread_id,
+                threadTitle: thread.title,
+                snippet,
+                messageId: m.id,
+                role: m.role as "user" | "assistant",
+              });
+            }
+
+            // Cap at 8 results
+            return { results: results.slice(0, 8) };
+          } catch (err) {
+            console.error("searchChatHistory error:", err);
+            return { results: [], error: "Search failed" };
+          }
+        },
+      }),
+      searchKnowledgeBase: tool({
+        description:
+          "Search the enterprise knowledge base for relevant information from uploaded company documents. " +
+          "Use this when the user asks about company policies, procedures, documentation, or any topic " +
+          "that may be covered in uploaded documents. Returns the most relevant document chunks with source metadata.",
+        inputSchema: z.object({
+          query: z.string().describe("The search query to find relevant information in the knowledge base."),
+        }),
+        execute: async ({ query }: { query: string }) => {
+          try {
+            // tenant_id is ALWAYS derived server-side — never from the client
+            const ctx = await getTenantContext(supabase);
+            if (!ctx) return { chunks: [], message: "Not authenticated" };
+
+            // Search own KB + shared KB simultaneously
+            const result = await searchKnowledgeBaseWithShared(supabase, ctx.tenantId, query, 8);
+
+            if (result.chunks.length === 0) {
+              return {
+                chunks: [],
+                message: "No relevant documents found in the knowledge base for this query.",
+              };
+            }
+
+            return {
+              chunks: result.chunks.map((c) => ({
+                filename: c.filename,
+                chunkIndex: c.chunk_index,
+                text: c.chunk_text,
+                source: c.source ?? "own",
+              })),
+              message: `Found ${result.chunks.length} relevant passage${result.chunks.length === 1 ? "" : "s"} (${result.chunks.filter((c) => c.source === "shared").length} from Shared KB).`,
+            };
+          } catch (err) {
+            console.error("searchKnowledgeBase tool error:", err);
+            return { chunks: [], message: "Knowledge base search failed" };
+          }
+        },
+      }),
     };
 
     // Filter tools to only include toggleable tools that are enabled, plus system-default tools (weather, currency)
     const activeTools: ToolSet = {};
-    const userToggleable = ["calculator", "time", "uuid", "random", "stats"];
+    const userToggleable = ["calculator", "time", "stats", "searchChatHistory", "searchKnowledgeBase"];
 
     for (const name of Object.keys(allTools)) {
       const toolKey = name as keyof typeof allTools;
@@ -132,3 +304,4 @@ export async function POST(request: Request) {
     });
   }
 }
+

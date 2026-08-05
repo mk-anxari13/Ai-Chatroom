@@ -1,4 +1,4 @@
-export type ToolName = "calculator" | "time" | "random" | "uuid" | "stats" | "weather" | "currency";
+export type ToolName = "calculator" | "time" | "stats" | "weather" | "currency" | "searchChatHistory";
 
 export async function executeTool(name: ToolName, input?: string) {
   const rawInput = (input || "").trim();
@@ -24,36 +24,7 @@ export async function executeTool(name: ToolName, input?: string) {
     case "time": {
       return { success: true, result: new Date().toString() };
     }
-    case "random": {
-      let min = 0;
-      let max = 100;
-      let parsedOk = false;
-      try {
-        const parsed = JSON.parse(rawInput);
-        if (parsed.min !== undefined && parsed.max !== undefined) {
-          min = Number(parsed.min);
-          max = Number(parsed.max);
-          parsedOk = true;
-        }
-      } catch {
-        // ignore
-      }
 
-      if (!parsedOk) {
-        const parts = rawInput.split(/\s+/).filter(Boolean);
-        min = Number(parts[0] ?? 0);
-        max = Number(parts[1] ?? 100);
-      }
-
-      const a = Number.isFinite(min) ? min : 0;
-      const b = Number.isFinite(max) ? max : 100;
-      const n = Math.floor(Math.random() * (b - a + 1)) + a;
-      return { success: true, result: String(n) };
-    }
-    case "uuid": {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return { success: true, result: (globalThis.crypto && (globalThis.crypto as any).randomUUID ? (globalThis.crypto as any).randomUUID() : `${Date.now()}-${Math.random()}`) };
-    }
     case "stats": {
       let text = rawInput;
       try {
@@ -165,10 +136,9 @@ export async function executeTool(name: ToolName, input?: string) {
 export const TOOL_DISPLAY: Record<string, string> = {
   calculator: "🔧 Using Calculator...",
   time: "🕒 Getting Current Time...",
-  random: "🎲 Generating Random Number...",
-  uuid: "🆔 Generating UUID...",
   stats: "📊 Calculating Statistics...",
   weather: "🌤️ Fetching Weather Data...",
   currency: "💱 Converting Currency...",
+  searchChatHistory: "🔍 Searching Chat History...",
 };
 

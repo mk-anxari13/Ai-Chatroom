@@ -1,28 +1,717 @@
 @import "tailwindcss";
 
+/* ============================================================
+   Fluent Design System — Windows 11 Color Tokens
+   ============================================================ */
 :root {
-  --background: #fafafa;
-  --foreground: #171717;
+  /* Accent */
+  --win-accent:            #0078D4;
+  --win-accent-hover:      #106EBE;
+  --win-accent-pressed:    #005A9E;
+  --win-accent-light:      #EBF4FC;
+  --win-accent-text:       #003D6B;
+
+  /* Backgrounds — Mica/Acrylic inspired */
+  --win-bg-base:           #F3F3F3;
+  --win-bg-card:           #FFFFFF;
+  --win-bg-subtle:         #EBEBEB;
+  --win-bg-hover:          #E5E5E5;
+  --win-bg-pressed:        #DCDCDC;
+  --win-bg-disabled:       #F3F3F3;
+
+  /* Sidebar — Mica translucent surface */
+  --win-sidebar-bg:        rgba(243, 243, 243, 0.85);
+  --win-sidebar-border:    #E5E5E5;
+
+  /* Surfaces */
+  --win-surface-flyout:    rgba(255, 255, 255, 0.85);
+  --win-surface-dialog:    #FFFFFF;
+
+  /* Borders */
+  --win-border-default:    #E5E5E5;
+  --win-border-strong:     #C7C7C7;
+  --win-border-focus:      #0078D4;
+
+  /* Text */
+  --win-text-primary:      #1A1A1A;
+  --win-text-secondary:    #5C5C5C;
+  --win-text-tertiary:     #8A8A8A;
+  --win-text-disabled:     #ABABAB;
+  --win-text-on-accent:    #FFFFFF;
+
+  /* Status */
+  --win-success:           #107C10;
+  --win-success-bg:        #EFF8EF;
+  --win-warning:           #9A5200;
+  --win-warning-bg:        #FFF4CE;
+  --win-error:             #C42B1C;
+  --win-error-bg:          #FDE7E9;
+  --win-info:              #0078D4;
+  --win-info-bg:           #EBF4FC;
+
+  /* Shadows — soft elevation */
+  --win-shadow-sm:         0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.05);
+  --win-shadow-md:         0 2px 8px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06);
+  --win-shadow-lg:         0 8px 24px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06);
+  --win-shadow-xl:         0 16px 48px rgba(0,0,0,0.14), 0 4px 12px rgba(0,0,0,0.08);
+
+  /* Radii — Windows 11 */
+  --win-radius-sm:         4px;
+  --win-radius-md:         8px;
+  --win-radius-lg:         12px;
+  --win-radius-xl:         16px;
+  --win-radius-pill:       9999px;
+
+  /* Motion */
+  --win-duration-fast:     100ms;
+  --win-duration-normal:   200ms;
+  --win-duration-slow:     300ms;
+  --win-easing:            cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Typography scale */
+  --win-font-caption:      11px;
+  --win-font-body:         14px;
+  --win-font-body-strong:  14px;
+  --win-font-subtitle:     20px;
+  --win-font-title:        28px;
+  --win-font-title-large:  40px;
+
+  /* Legacy compat */
+  --background:            var(--win-bg-base);
+  --foreground:            var(--win-text-primary);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-background:      var(--background);
+  --color-foreground:      var(--foreground);
+  --font-sans:             var(--font-inter);
+  --font-mono:             var(--font-geist-mono);
 }
 
+/* ============================================================
+   Reset & Base
+   ============================================================ */
 * {
   box-sizing: border-box;
 }
 
 html {
   color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   margin: 0;
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--win-bg-base);
+  color: var(--win-text-primary);
+  /* Prioritize Segoe UI Variable on Windows 11, fall back to Inter (loaded from Google Fonts) */
+  font-family: "Segoe UI Variable", "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
+  font-size: var(--win-font-body);
+  line-height: 1.5;
+  font-feature-settings: "cv01", "cv02", "cv03", "cv04";
+}
+
+/* ============================================================
+   Fluent Scrollbar
+   ============================================================ */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.28);
+}
+
+/* ============================================================
+   Acrylic / Mica helpers
+   ============================================================ */
+.win-acrylic {
+  background: var(--win-sidebar-bg);
+  backdrop-filter: blur(30px) saturate(1.5);
+  -webkit-backdrop-filter: blur(30px) saturate(1.5);
+}
+
+.win-flyout {
+  background: var(--win-surface-flyout);
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+  border: 1px solid var(--win-border-default);
+  border-radius: var(--win-radius-lg);
+  box-shadow: var(--win-shadow-lg);
+}
+
+/* ============================================================
+   Fluent Focus Ring
+   ============================================================ */
+.win-focus:focus-visible {
+  outline: 2px solid var(--win-accent);
+  outline-offset: 1px;
+}
+
+/* ============================================================
+   Keyframes
+   ============================================================ */
+@keyframes highlight-fade {
+  0%   { background-color: rgba(0, 120, 212, 0.12); border-radius: 8px; }
+  70%  { background-color: rgba(0, 120, 212, 0.07); border-radius: 8px; }
+  100% { background-color: transparent; border-radius: 8px; }
+}
+
+.message-highlight {
+  animation: highlight-fade 2.5s ease-out forwards;
+}
+
+@keyframes fluent-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fluent-slide-right {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fluent-slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fluent-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes fluent-ping {
+  75%, 100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+@keyframes fluent-message-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fluent-toast-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fluent-toast-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(4px) scale(0.97); }
+}
+
+@keyframes fluent-save-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+.animate-fluent-fade      { animation: fluent-fade-in var(--win-duration-normal) var(--win-easing) both; }
+.animate-fluent-slide-r   { animation: fluent-slide-right var(--win-duration-normal) var(--win-easing) both; }
+.animate-fluent-slide-u   { animation: fluent-slide-up var(--win-duration-normal) var(--win-easing) both; }
+.animate-fluent-spin      { animation: fluent-spin 0.8s linear infinite; }
+.animate-fluent-ping      { animation: fluent-ping 1.2s cubic-bezier(0,0,0.2,1) infinite; }
+.animate-message-in       { animation: fluent-message-in 180ms var(--win-easing) both; }
+.animate-toast-in         { animation: fluent-toast-in 200ms var(--win-easing) both; }
+.animate-save-pulse       { animation: fluent-save-pulse 1.4s ease-in-out infinite; }
+
+/* ============================================================
+   Fluent NavItem active pill
+   ============================================================ */
+.win-nav-item-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 16px;
+  background: var(--win-accent);
+  border-radius: 0 2px 2px 0;
+}
+
+/* ============================================================
+   Fluent ProgressBar
+   ============================================================ */
+@keyframes fluent-progress {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
+.win-progress-bar {
+  position: relative;
+  overflow: hidden;
+  height: 2px;
+  background: rgba(0, 120, 212, 0.2);
+  border-radius: 2px;
+}
+
+.win-progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 25%;
+  height: 100%;
+  background: var(--win-accent);
+  border-radius: 2px;
+  animation: fluent-progress 1.4s ease-in-out infinite;
+}
+
+/* ============================================================
+   react-resizable-panels — Drag handle
+   ============================================================ */
+[data-panel-group],
+[data-group] {
+  height: 100%;
+  background: transparent;
+}
+
+[data-separator],
+.win-resize-handle {
+  position: relative;
+  background: #E2E8F0;
+  width: 1px;
+  cursor: col-resize;
+  flex-shrink: 0;
+  transition: background 150ms ease, width 150ms ease;
+  margin: 0 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 8px transparent hit area around the 1px divider for effortless resizing */
+[data-separator]::before,
+.win-resize-handle::before {
+  content: '';
+  position: absolute;
+  inset-y: 0;
+  left: -4px;
+  right: -4px;
+  z-index: 10;
+}
+
+[data-separator]:hover,
+[data-separator][data-resize-handle-active],
+.win-resize-handle:hover,
+.win-resize-handle[data-resize-handle-active] {
+  background: #0078D4;
+  width: 2px;
+  box-shadow: 0 0 8px rgba(0, 120, 212, 0.45);
+  margin: 0 1.5px;
+}
+
+/* ============================================================
+   Tiptap / ProseMirror — Editor prose styles (Fluent)
+   ============================================================ */
+
+/* Editable region */
+.rte-prose .ProseMirror {
+  outline: none;
+  font-family: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #1A1A1A;
+  min-height: 100%;
+  word-break: break-word;
+}
+
+/* Placeholder */
+.rte-prose .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #ABABAB;
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+}
+
+/* Headings */
+.rte-prose .ProseMirror h1 {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 1.4em 0 0.5em;
+  color: #1A1A1A;
+  letter-spacing: -0.3px;
+}
+.rte-prose .ProseMirror h2 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1.2em 0 0.4em;
+  color: #1A1A1A;
+}
+.rte-prose .ProseMirror h3 {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 1em 0 0.3em;
+  color: #1A1A1A;
+}
+.rte-prose .ProseMirror h4 {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0.8em 0 0.2em;
+  color: #1A1A1A;
+}
+.rte-prose .ProseMirror h5,
+.rte-prose .ProseMirror h6 {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  margin: 0.6em 0 0.2em;
+  color: #5C5C5C;
+}
+
+/* Paragraphs */
+.rte-prose .ProseMirror p {
+  margin: 0 0 0.75em;
+}
+
+/* Bold / Italic / Strike */
+.rte-prose .ProseMirror strong { font-weight: 700; }
+.rte-prose .ProseMirror em     { font-style: italic; }
+.rte-prose .ProseMirror u      { text-decoration: underline; text-underline-offset: 2px; }
+.rte-prose .ProseMirror s,
+.rte-prose .ProseMirror del    { text-decoration: line-through; color: #8A8A8A; }
+
+/* Inline code */
+.rte-prose .ProseMirror code {
+  font-family: "Geist Mono", "Cascadia Code", "Consolas", monospace;
+  font-size: 12px;
+  background: #F3F3F3;
+  border: 1px solid #E5E5E5;
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: #C42B1C;
+}
+
+/* Code block */
+.rte-prose .ProseMirror pre,
+.rte-prose .ProseMirror .rte-code-block {
+  background: #1E1E2E;
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+.rte-prose .ProseMirror pre code {
+  font-family: "Geist Mono", "Cascadia Code", "Consolas", monospace;
+  font-size: 13px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: #CDD6F4;
+  border-radius: 0;
+}
+
+/* Blockquote */
+.rte-prose .ProseMirror blockquote {
+  border-left: 3px solid #0078D4;
+  margin: 1em 0;
+  padding: 8px 16px;
+  background: #EBF4FC;
+  border-radius: 0 8px 8px 0;
+  color: #003D6B;
+  font-style: italic;
+}
+
+/* Lists */
+.rte-prose .ProseMirror ul:not([data-type="taskList"]) {
+  list-style-type: disc;
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+.rte-prose .ProseMirror ul:not([data-type="taskList"]) ul {
+  list-style-type: circle;
+}
+.rte-prose .ProseMirror ol {
+  list-style-type: decimal;
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+.rte-prose .ProseMirror li {
+  margin: 0.2em 0;
+}
+.rte-prose .ProseMirror li p {
+  margin: 0;
+}
+
+/* Task list */
+.rte-prose .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+.rte-prose .ProseMirror ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.rte-prose .ProseMirror ul[data-type="taskList"] li > label {
+  flex-shrink: 0;
+  margin-top: 2px;
+  cursor: pointer;
+}
+.rte-prose .ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"] {
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid #C7C7C7;
+  border-radius: 4px;
+  background: #FFFFFF;
+  cursor: pointer;
+  transition: all 150ms ease;
+  display: grid;
+  place-content: center;
+}
+.rte-prose .ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"]::before {
+  content: '';
+  width: 7px;
+  height: 5px;
+  border-left: 2px solid #FFFFFF;
+  border-bottom: 2px solid #FFFFFF;
+  transform: rotate(-45deg) scaleY(0);
+  transition: transform 100ms ease;
+}
+.rte-prose .ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"]:checked {
+  background: #0078D4;
+  border-color: #0078D4;
+}
+.rte-prose .ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"]:checked::before {
+  transform: rotate(-45deg) scaleY(1);
+}
+.rte-prose .ProseMirror ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: #8A8A8A;
+  text-decoration: line-through;
+}
+
+/* Horizontal rule */
+.rte-prose .ProseMirror hr {
+  border: none;
+  border-top: 1px solid #E5E5E5;
+  margin: 1.5em 0;
+}
+
+/* Links */
+.rte-prose .ProseMirror a {
+  color: #0078D4;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+.rte-prose .ProseMirror a:hover {
+  color: #106EBE;
+}
+
+/* Images */
+.rte-prose .ProseMirror img,
+.rte-prose .ProseMirror .rte-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 0.75em 0;
+  border: 1px solid #E5E5E5;
+}
+.rte-prose .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid #0078D4;
+  outline-offset: 2px;
+}
+
+/* Tables */
+.rte-prose .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  font-size: 13px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #E5E5E5;
+}
+.rte-prose .ProseMirror th {
+  background: #F3F3F3;
+  font-weight: 600;
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid #E5E5E5;
+  color: #1A1A1A;
+}
+.rte-prose .ProseMirror td {
+  padding: 8px 12px;
+  border: 1px solid #E5E5E5;
+  vertical-align: top;
+}
+.rte-prose .ProseMirror .selectedCell::after {
+  background: rgba(0, 120, 212, 0.08);
+  content: '';
+  left: 0; right: 0; top: 0; bottom: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 2;
+}
+.rte-prose .ProseMirror .column-resize-handle {
+  background-color: #0078D4;
+  bottom: -2px;
+  pointer-events: none;
+  position: absolute;
+  right: -2px;
+  top: 0;
+  width: 4px;
+}
+.rte-prose .ProseMirror .tableWrapper {
+  overflow-x: auto;
+}
+.rte-prose .ProseMirror tr:nth-child(even) td {
+  background: #FAFAFA;
+}
+
+/* Selection */
+.rte-prose .ProseMirror ::selection {
+  background: rgba(0, 120, 212, 0.18);
+}
+
+/* Scroll area */
+.rte-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.rte-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.12);
+  border-radius: 3px;
+}
+
+/* ============================================================
+   Word / Loop Document Page surface
+   ============================================================ */
+.win-document-page {
+  background: #FFFFFF;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04), 0 8px 32px rgba(0, 0, 0, 0.06);
+}
+
+/* ============================================================
+   Word / Loop Ribbon toolbar
+   ============================================================ */
+.win-ribbon {
+  background: #FFFFFF;
+  border-bottom: 1px solid #EAEEEF;
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  padding: 0 8px;
+}
+
+.win-ribbon-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 10px 4px;
+  border-right: 1px solid #EAEEEF;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.win-ribbon-section:last-child {
+  border-right: none;
+}
+
+.win-ribbon-buttons {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.win-ribbon-label {
+  font-size: 9px;
+  font-weight: 600;
+  color: #8A8A8A;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  user-select: none;
+  line-height: 1.2;
+}
+
+/* ============================================================
+   AI action bar (per-message, clean Copilot integration)
+   ============================================================ */
+.win-message-group .win-action-bar {
+  opacity: 0.85;
+  transition: opacity 150ms ease, background-color 150ms ease;
+}
+
+.win-message-group:hover .win-action-bar,
+.win-message-group:focus-within .win-action-bar {
+  opacity: 1;
+}
+
+/* ============================================================
+   Fluent toast notification
+   ============================================================ */
+.win-toast {
+  position: fixed;
+  bottom: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(28, 30, 36, 0.94);
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 20px;
+  border-radius: 24px;
+  z-index: 9999;
+  pointer-events: none;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+}
+
+/* ============================================================
+   Microsoft Copilot Command Header
+   ============================================================ */
+.win-chat-header {
+  height: 52px;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+/* ============================================================
+   Copilot-style Composer
+   ============================================================ */
+.win-composer {
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid #CDD5DF;
+  border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+  overflow: hidden;
+}
+
+.win-composer:focus-within {
+  border-color: #0078D4;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08), 0 0 0 1.5px rgba(0, 120, 212, 0.25);
 }
