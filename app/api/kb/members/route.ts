@@ -91,16 +91,13 @@ export async function POST(request: Request) {
     // Insert pending invite record FIRST (the DB trigger reads this on signup)
     const { error: inviteInsertError } = await supabase
       .from("tenant_invites")
-      .upsert(
-        {
-          tenant_id: ctx.tenantId,
-          email,
-          role,
-          invited_by: ctx.userId,
-          accepted_at: null,
-        },
-        { onConflict: "email,tenant_id" }
-      );
+      .insert({
+        tenant_id: ctx.tenantId,
+        email,
+        role,
+        invited_by: ctx.userId,
+        accepted_at: null,
+      });
 
     if (inviteInsertError) {
       // Unique constraint = already invited
@@ -135,8 +132,9 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true, email, role });
-  } catch (err) {
+  } catch (err: any) {
     console.error("POST /api/kb/members error:", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    const errorMessage = err?.message || (typeof err === "string" ? err : JSON.stringify(err));
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
