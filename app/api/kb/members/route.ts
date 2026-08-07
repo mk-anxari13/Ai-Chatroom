@@ -114,20 +114,24 @@ export async function POST(request: Request) {
     }
 
     // Send the Supabase Auth invite email using the service-role key
-    const adminClient = createAdminClient();
-    const { error: authInviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
-    });
+    try {
+      const adminClient = createAdminClient();
+      const { error: authInviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
+        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      });
 
-    if (authInviteError) {
-      // Roll back the invite record if the email send failed
+      if (authInviteError) {
+        throw authInviteError;
+      }
+    } catch (inviteErr) {
+      // Roll back the invite record if the email send failed or if client creation failed
       await supabase
         .from("tenant_invites")
         .delete()
         .eq("tenant_id", ctx.tenantId)
         .eq("email", email);
 
-      throw authInviteError;
+      throw inviteErr;
     }
 
     return NextResponse.json({ success: true, email, role });
