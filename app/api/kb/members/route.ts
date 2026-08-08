@@ -163,9 +163,10 @@ export async function POST(request: Request) {
 
     // Send the Supabase Auth invite email using the service-role key
     try {
+      const origin = new URL(request.url).origin;
       const adminClient = createAdminClient();
       const { error: authInviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+        redirectTo: `${origin}/auth/callback`,
       });
 
       if (authInviteError) {
