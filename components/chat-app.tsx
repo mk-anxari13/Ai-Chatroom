@@ -490,8 +490,10 @@ export function ChatApp() {
   useEffect(() => { setMounted(true); }, []);
 
   const { messages, sendMessage, setMessages, status } = useChat<ChatSDKMessage>({
-    api: "/api/chat",
-    body: { threadId: activeThreadId, model: selectedModel, enabledTools },
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      body: { threadId: activeThreadId, model: selectedModel, enabledTools },
+    }),
     onFinish: async ({ message }) => {
       const dbContent = getMessageContent(message);
       const assistantDbId = crypto.randomUUID();
