@@ -36,34 +36,6 @@ export async function POST(request: Request) {
       return new Response("Missing parameters", { status: 400 });
     }
 
-    const baseSystemPrompt =
-      "You are a helpful assistant with access to several tools.\n\n" +
-      "KNOWLEDGE BASE: When the user asks about company policies, procedures, or topics that may be in " +
-      "uploaded documents, use the searchKnowledgeBase tool. " +
-      "Results may come from two sources:\n" +
-      "  - The user's own tenant knowledge base (source: own)\n" +
-      "  - The enterprise-wide Shared Knowledge Base (source: shared)\n" +
-      "When you receive results from searchKnowledgeBase:\n" +
-      "- Answer naturally and thoroughly using the retrieved content.\n" +
-      "- At the end of your answer, add a 'Sources' section listing the document filenames.\n" +
-      "- For shared documents, append [Shared KB] after the filename, e.g. 'Policy Guide [Shared KB]'.\n" +
-      "- Example format: 'According to [Filename]:\\n\\n[answer]\\n\\nSources:\\n• [Filename]\\n• [Filename] [Shared KB]'\n" +
-      "- If the tool returns no results, answer from your general knowledge and mention no relevant documents were found.\n\n" +
-      "CHAT HISTORY: When you use the searchChatHistory tool and find results, after your answer include a " +
-      "section titled 'Related Conversations' that lists the found conversations with their titles and snippets.\n\n" +
-      "PDF FILES: You can also analyze PDF documents that users attach — answer questions about their content thoroughly.";
-
-    // Build system instructions: if a pdfContext was passed (fallback for models
-    // that don't natively support PDF file inputs), append the extracted text.
-    let systemPrompt = baseSystemPrompt;
-    if (pdfContext?.text) {
-      systemPrompt +=
-        `\n\n--- Attached PDF: ${pdfContext.filename} (${pdfContext.pages} page${pdfContext.pages === 1 ? "" : "s"}) ---\n` +
-        (pdfContext.truncated ? "(Note: text was truncated to 50,000 characters)\n" : "") +
-        pdfContext.text +
-        "\n--- End of PDF ---";
-    }
-
     // Create supabase client once for this request (used by searchChatHistory)
     const supabase = await createClient();
 
@@ -227,9 +199,10 @@ export async function POST(request: Request) {
       }),
       searchKnowledgeBase: tool({
         description:
+          "ALWAYS use this tool first if the user asks about company policies, procedures, documentation, " +
+          "or any internal topic, or if they ask a question you cannot confidently answer from general knowledge. " +
           "Search the enterprise knowledge base for relevant information from uploaded company documents. " +
-          "Use this when the user asks about company policies, procedures, documentation, or any topic " +
-          "that may be covered in uploaded documents. Returns the most relevant document chunks with source metadata.",
+          "Returns the most relevant document chunks with source metadata.",
         inputSchema: z.object({
           query: z.string().describe("The search query to find relevant information in the knowledge base."),
         }),
@@ -274,10 +247,49 @@ export async function POST(request: Request) {
       const toolKey = name as keyof typeof allTools;
       if (!userToggleable.includes(name)) {
         activeTools[name] = allTools[toolKey];
-      } else if (!enabledTools || enabledTools[name] !== false) {
+      } else if (enabledTools && enabledTools[name] === true) {
+        activeTools[name] = allTools[toolKey];
+      } else if (!enabledTools) {
         activeTools[name] = allTools[toolKey];
       }
     }
+
+    let baseSystemPrompt = "You are a helpful assistant with access to several tools.\n\n";
+    
+    if (activeTools.searchKnowledgeBase) {
+      baseSystemPrompt += 
+        "KNOWLEDGE BASE: When the user asks about company policies, procedures, or topics that may be in " +
+        "uploaded documents, ALWAYS use the searchKnowledgeBase tool. " +
+        "Results may come from two sources:\n" +
+        "  - The user's own tenant knowledge base (source: own)\n" +
+        "  - The enterprise-wide Shared Knowledge Base (source: shared)\n" +
+        "When you receive results from searchKnowledgeBase:\n" +
+        "- Answer naturally and thoroughly using the retrieved content.\n" +
+        "- At the end of your answer, add a 'Sources' section listing the document filenames.\n" +
+        "- For shared documents, append [Shared KB] after the filename, e.g. 'Policy Guide [Shared KB]'.\n" +
+        "- Example format: 'According to [Filename]:\\n\\n[answer]\\n\\nSources:\\n• [Filename]\\n• [Filename] [Shared KB]'\n" +
+        "- If the tool returns no results, answer from your general knowledge and mention no relevant documents were found.\n\n";
+    }
+
+    if (activeTools.searchChatHistory) {
+      baseSystemPrompt +=
+        "CHAT HISTORY: When you use the searchChatHistory tool and find results, after your answer include a " +
+        "section titled 'Related Conversations' that lists the found conversations with their titles and snippets.\n\n";
+    }
+
+    baseSystemPrompt += "PDF FILES: You can also analyze PDF documents that users attach — answer questions about their content thoroughly.";
+
+    // Build system instructions: if a pdfContext was passed (fallback for models
+    // that don't natively support PDF file inputs), append the extracted text.
+    let systemPrompt = baseSystemPrompt;
+    if (pdfContext?.text) {
+      systemPrompt +=
+        `\n\n--- Attached PDF: ${pdfContext.filename} (${pdfContext.pages} page${pdfContext.pages === 1 ? "" : "s"}) ---\n` +
+        (pdfContext.truncated ? "(Note: text was truncated to 50,000 characters)\n" : "") +
+        pdfContext.text +
+        "\n--- End of PDF ---";
+    }
+
 
     const modelMessages = await convertToModelMessages(messages);
 

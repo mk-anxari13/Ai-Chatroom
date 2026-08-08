@@ -31,13 +31,13 @@ import { SHARED_TENANT_ID } from "@/types";
 interface Member {
   id: string;
   email: string;
-  role: "tenant_admin" | "user";
+  role: "tenant_admin" | "shared_admin" | "user";
 }
 
 interface PendingInvite {
   id: string;
   email: string;
-  role: "tenant_admin" | "user";
+  role: "tenant_admin" | "shared_admin" | "user";
   created_at: string;
 }
 
@@ -65,12 +65,22 @@ function StatusBadge({ status }: { status: DocumentStatus }) {
   );
 }
 
-function RoleBadge({ role }: { role: "tenant_admin" | "user" }) {
-  return role === "tenant_admin" ? (
-    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-violet-50 text-violet-700">
-      <Shield className="h-2.5 w-2.5" />Admin
-    </span>
-  ) : (
+function RoleBadge({ role }: { role: "tenant_admin" | "shared_admin" | "user" }) {
+  if (role === "tenant_admin") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-violet-50 text-violet-700">
+        <Shield className="h-2.5 w-2.5" />Admin
+      </span>
+    );
+  }
+  if (role === "shared_admin") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+        <Shield className="h-2.5 w-2.5" />Shared Admin
+      </span>
+    );
+  }
+  return (
     <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold bg-zinc-100 text-zinc-500">
       User
     </span>

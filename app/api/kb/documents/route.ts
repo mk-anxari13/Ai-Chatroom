@@ -108,6 +108,24 @@ export async function POST(request: Request) {
 
     const targetTenantId = isSharedTarget ? SHARED_TENANT_ID : ctx.tenantId;
 
+    // ── Step 0: Calculate content hash and check for duplicates
+    const crypto = await import("crypto");
+    const contentHash = crypto.createHash("sha256").update(extractedText).digest("hex");
+
+    const { data: existingDoc } = await supabase
+      .from("documents")
+      .select("id")
+      .eq("tenant_id", targetTenantId)
+      .eq("content_hash", contentHash)
+      .single();
+
+    if (existingDoc) {
+      return NextResponse.json(
+        { error: "Duplicate document. This content has already been uploaded." },
+        { status: 409 }
+      );
+    }
+
     // ── Step 1: Create the document record ────────────────────
     const { data: doc, error: docError } = await supabase
       .from("documents")
@@ -118,13 +136,23 @@ export async function POST(request: Request) {
         processing_status: "processing",
         file_size_bytes: fileSizeBytes ?? null,
         extracted_text: extractedText,
+        content_hash: contentHash,
       })
       .select()
       .single();
 
-    if (docError || !doc) {
-      throw new Error(docError?.message ?? "Failed to create document record");
+    if (docError) {
+      // Handle race condition uniqueness violation (Postgres error code 23505)
+      if (docError.code === "23505") {
+        return NextResponse.json(
+          { error: "Duplicate document. This content has already been uploaded." },
+          { status: 409 }
+        );
+      }
+      throw new Error(docError.message ?? "Failed to create document record");
     }
+
+    if (!doc) throw new Error("Failed to create document record");
 
     // ── Step 2: Chunk the extracted text ──────────────────────
     const chunks = chunkText(extractedText);

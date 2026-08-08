@@ -463,8 +463,8 @@ export function ChatApp() {
         editorHandleRef.current.appendText(text);
         showToast("Appended to document");
       } else if (mode === "replace") {
-        editorHandleRef.current.replaceContent(text);
-        showToast("Replaced document content with AI response");
+        editorHandleRef.current.replaceSelection(text);
+        showToast("Replaced text with AI response");
       } else if (mode === "rewrite") {
         const rewrote = editorHandleRef.current.rewriteSelection(text);
         if (rewrote) {
@@ -489,13 +489,9 @@ export function ChatApp() {
   useEffect(() => { threadsRef.current = threads; }, [threads]);
   useEffect(() => { setMounted(true); }, []);
 
-  const transport = useMemo(() => new DefaultChatTransport({
+  const { messages, sendMessage, setMessages, status } = useChat<ChatSDKMessage>({
     api: "/api/chat",
     body: { threadId: activeThreadId, model: selectedModel, enabledTools },
-  }), [activeThreadId, selectedModel, enabledTools]);
-
-  const { messages, sendMessage, setMessages, status } = useChat<ChatSDKMessage>({
-    transport,
     onFinish: async ({ message }) => {
       const dbContent = getMessageContent(message);
       const assistantDbId = crypto.randomUUID();
@@ -1644,59 +1640,51 @@ export function ChatApp() {
                 </DropdownMenu>
 
                 {/* Model selector */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setModelOpen(!modelOpen)}
-                    className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium
-                               text-[#505762] hover:text-[#1A1F26] hover:bg-[#EAEEF4]
-                               transition-colors duration-100 cursor-pointer select-none max-w-[180px]"
-                  >
-                    <span className="truncate">
-                      {selectedModel
-                        ? (models.find((m) => m.id === selectedModel)?.name ?? selectedModel.replace("nvidia/", "").replace(":free", ""))
-                        : "Select Model"}
-                    </span>
-                    <ChevronDown className="h-3 w-3 opacity-60 shrink-0" />
-                  </button>
-
-                  {modelOpen && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setModelOpen(false)} />
-                      <div
-                        className="absolute left-0 bottom-full mb-2 w-72 z-50 p-1.5 bg-white border border-[#CDD6E2] rounded-xl shadow-lg"
-                      >
-                        <div className="px-2.5 py-1.5 text-[10px] font-bold text-[#8A8A8A] uppercase tracking-wider select-none">
-                          AI Models
-                        </div>
-                        <div className="overflow-y-auto max-h-64 overscroll-contain">
-                          <div className="space-y-0.5">
-                            {models.map((model) => (
-                              <button
-                                key={model.id}
-                                type="button"
-                                onClick={() => {
-                                  setSelectedModel(model.id);
-                                  localStorage.setItem("selectedModel", model.id);
-                                  setModelOpen(false);
-                                }}
-                                className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm rounded-lg
-                                             transition-colors duration-100 cursor-pointer
-                                             ${selectedModel === model.id
-                                               ? "bg-[#EBF4FC] text-[#0078D4] font-semibold"
-                                               : "text-[#1A1F26] hover:bg-[#F0F2F6]"
-                                             }`}
-                              >
-                                <span className="truncate pr-2">{model.name}</span>
-                                {selectedModel === model.id && <Check className="h-3.5 w-3.5 text-[#0078D4] shrink-0" />}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                <DropdownMenu open={modelOpen} onOpenChange={setModelOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg text-xs font-medium
+                                 text-[#505762] hover:text-[#1A1F26] hover:bg-[#EAEEF4]
+                                 transition-colors duration-100 cursor-pointer select-none max-w-[180px]"
+                    >
+                      <span className="truncate">
+                        {selectedModel
+                          ? (models.find((m) => m.id === selectedModel)?.name ?? selectedModel.replace("nvidia/", "").replace(":free", ""))
+                          : "Select Model"}
+                      </span>
+                      <ChevronDown className="h-3 w-3 opacity-60 shrink-0" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-72 p-1.5 z-50">
+                    <div className="px-2.5 py-1.5 text-[10px] font-bold text-[#8A8A8A] uppercase tracking-wider select-none">
+                      AI Models
+                    </div>
+                    <div className="overflow-y-auto max-h-[60vh] overscroll-contain">
+                      <div className="space-y-0.5">
+                        {models.map((model) => (
+                          <DropdownMenuItem
+                            key={model.id}
+                            onSelect={() => {
+                              setSelectedModel(model.id);
+                              localStorage.setItem("selectedModel", model.id);
+                              setModelOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-2 text-left text-sm rounded-lg
+                                         transition-colors duration-100 cursor-pointer
+                                         ${selectedModel === model.id
+                                           ? "bg-[#EBF4FC] text-[#0078D4] font-semibold"
+                                           : "text-[#1A1F26] hover:bg-[#F0F2F6]"
+                                         }`}
+                          >
+                            <span className="truncate pr-2">{model.name}</span>
+                            {selectedModel === model.id && <Check className="h-3.5 w-3.5 text-[#0078D4] shrink-0" />}
+                          </DropdownMenuItem>
+                        ))}
                       </div>
-                    </>
-                  )}
-                </div>
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
                 {/* Spacer */}
                 <div className="flex-1" />
@@ -1740,6 +1728,8 @@ export function ChatApp() {
             className="h-full min-w-[320px]"
           >
             <RichTextEditor
+              key={activeThreadId || "default"}
+              chatId={activeThreadId || "default"}
               onClose={() => { setEditorOpen(false); localStorage.setItem("rte-panel-open", "false"); }}
               onReady={(handle) => { editorHandleRef.current = handle; }}
             />

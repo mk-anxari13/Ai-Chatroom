@@ -45,8 +45,7 @@ function parseMarkdownToHTML(markdown: string): string {
 }
 
 // ── localStorage key ─────────────────────────────────────────
-const LS_CONTENT_KEY = "rte-content";
-const LS_TITLE_KEY   = "rte-title";
+// Keys are dynamically generated using chatId
 
 // ── Markdown export (simple serialiser) ──────────────────────
 function htmlToMarkdown(html: string): string {
@@ -103,14 +102,18 @@ export interface EditorHandle {
 // ── Main component ───────────────────────────────────────────
 
 interface RichTextEditorProps {
+  chatId: string;
   onClose: () => void;
   /** Called once the editor is ready, passing an imperative handle */
-  onReady?: (handle: EditorHandle) => void;
+  onReady?: (handle: EditorHandle | null) => void;
 }
 
-export function RichTextEditor({ onClose, onReady }: RichTextEditorProps) {
+export function RichTextEditor({ chatId, onClose, onReady }: RichTextEditorProps) {
+  const lsContentKey = `rte-content-${chatId}`;
+  const lsTitleKey = `rte-title-${chatId}`;
+
   const [title, setTitle] = useState(() => {
-    if (typeof window !== "undefined") return localStorage.getItem(LS_TITLE_KEY) ?? "Untitled document";
+    if (typeof window !== "undefined") return localStorage.getItem(lsTitleKey) ?? "Untitled document";
     return "Untitled document";
   });
   const [copied, setCopied] = useState(false);
@@ -153,10 +156,10 @@ export function RichTextEditor({ onClose, onReady }: RichTextEditorProps) {
       TaskList,
       TaskItem.configure({ nested: true }),
     ],
-    content: typeof window !== "undefined" ? (localStorage.getItem(LS_CONTENT_KEY) ?? "<p></p>") : "<p></p>",
+    content: typeof window !== "undefined" ? (localStorage.getItem(lsContentKey) ?? "<p></p>") : "<p></p>",
     onUpdate({ editor: ed }) {
       // Auto-save to localStorage on every change
-      localStorage.setItem(LS_CONTENT_KEY, ed.getHTML());
+      localStorage.setItem(lsContentKey, ed.getHTML());
       // Update word count
       const text = ed.state.doc.textContent;
       const words = text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
@@ -175,8 +178,8 @@ export function RichTextEditor({ onClose, onReady }: RichTextEditorProps) {
 
   // Persist title
   useEffect(() => {
-    localStorage.setItem(LS_TITLE_KEY, title);
-  }, [title]);
+    localStorage.setItem(lsTitleKey, title);
+  }, [title, lsTitleKey]);
 
   // Register the imperative handle with the parent (ChatApp)
   useEffect(() => {
@@ -238,6 +241,10 @@ export function RichTextEditor({ onClose, onReady }: RichTextEditorProps) {
     };
 
     onReady(handle);
+    
+    return () => {
+      onReady(null);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor]);
 

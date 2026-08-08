@@ -38,6 +38,8 @@ export async function searchKnowledgeBase(
     return { chunks: [], query, tenantId };
   }
 
+  const orQuery = terms.map(t => `chunk_text.ilike.%${t}%`).join(",");
+
   const { data, error } = await supabase
     .from("document_chunks")
     .select(
@@ -45,7 +47,7 @@ export async function searchKnowledgeBase(
        documents!inner ( filename, tenant_id )`
     )
     .eq("tenant_id", tenantId)
-    .ilike("chunk_text", `%${query}%`)
+    .or(orQuery)
     .limit(limit);
 
   if (error || !data) {
@@ -85,6 +87,9 @@ export async function searchKnowledgeBaseWithShared(
     return { chunks: [], query, tenantId };
   }
 
+  // Build an OR query for all terms to improve matching
+  const orQuery = terms.map(t => `chunk_text.ilike.%${t}%`).join(",");
+
   // ── Query 1: own tenant ────────────────────────────────────
   const ownPromise = supabase
     .from("document_chunks")
@@ -93,7 +98,7 @@ export async function searchKnowledgeBaseWithShared(
        documents!inner ( filename, tenant_id )`
     )
     .eq("tenant_id", tenantId)
-    .ilike("chunk_text", `%${query}%`)
+    .or(orQuery)
     .limit(Math.ceil(limit * 0.6)); // bias towards own-tenant results
 
   // ── Query 2: shared tenant (skip if user IS the shared tenant) ─
@@ -107,7 +112,7 @@ export async function searchKnowledgeBaseWithShared(
              documents!inner ( filename, tenant_id )`
           )
           .eq("tenant_id", SHARED_TENANT_ID)
-          .ilike("chunk_text", `%${query}%`)
+          .or(orQuery)
           .limit(Math.ceil(limit * 0.6));
 
   const [ownResult, sharedResult] = await Promise.all([ownPromise, sharedPromise]);

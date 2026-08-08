@@ -5,11 +5,10 @@ import { useState } from "react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useFormik } from "formik";
 
 export function AuthForm() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -17,42 +16,60 @@ export function AuthForm() {
 
   const supabase = createClient();
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setMessage(null);
-    setIsError(false);
+  const formik = useFormik({
+    initialValues: {
+      email: "",
+      password: "",
+    },
+    validate: (values) => {
+      const errors: Record<string, string> = {};
+      if (!values.email) {
+        errors.email = "Email is required";
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+        errors.email = "Invalid email address";
+      }
+      
+      if (!values.password) {
+        errors.password = "Password is required";
+      }
+      return errors;
+    },
+    onSubmit: async (values) => {
+      setLoading(true);
+      setMessage(null);
+      setIsError(false);
 
-    if (!isSupabaseConfigured()) {
-      setMessage("Supabase is not configured yet. Add your environment variables and restart the app.");
-      setIsError(true);
+      if (!isSupabaseConfigured()) {
+        setMessage("Supabase is not configured yet. Add your environment variables and restart the app.");
+        setIsError(true);
+        setLoading(false);
+        return;
+      }
+
+      const result =
+        mode === "sign-in"
+          ? await supabase.auth.signInWithPassword({ email: values.email, password: values.password })
+          : await supabase.auth.signUp({ email: values.email, password: values.password });
+
+      const { error } = result;
+
+      if (error) {
+        setMessage(error.message);
+        setIsError(true);
+        setLoading(false);
+        return;
+      }
+
+      if (mode === "sign-in") {
+        setMessage("Signed in successfully.");
+      } else {
+        setMessage("Check your email to confirm your account.");
+      }
+
+      router.push("/");
       setLoading(false);
-      return;
-    }
-
-    const result =
-      mode === "sign-in"
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
-
-    const { error } = result;
-
-    if (error) {
-      setMessage(error.message);
-      setIsError(true);
-      setLoading(false);
-      return;
-    }
-
-    if (mode === "sign-in") {
-      setMessage("Signed in successfully.");
-    } else {
-      setMessage("Check your email to confirm your account.");
-    }
-
-    router.push("/");
-    setLoading(false);
-  }
+    },
+  });
 
   return (
     /* Windows 11 ContentDialog / sign-in card */
@@ -91,21 +108,26 @@ export function AuthForm() {
 
       {/* Form body */}
       <div className="px-8 pb-8">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <form onSubmit={formik.handleSubmit} className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <label htmlFor="auth-email" className="text-xs font-medium text-[#5C5C5C] select-none">
               Email address
             </label>
             <Input
               id="auth-email"
+              name="email"
               type="email"
               placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={formik.values.email}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
               required
               autoComplete="email"
-              className="h-9"
+              className={`h-9 ${formik.touched.email && formik.errors.email ? "border-red-500 focus-visible:ring-red-500" : ""}`}
             />
+            {formik.touched.email && formik.errors.email ? (
+              <div className="text-xs text-red-500 mt-0.5">{formik.errors.email}</div>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-1">
@@ -114,14 +136,19 @@ export function AuthForm() {
             </label>
             <Input
               id="auth-password"
+              name="password"
               type="password"
               placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={formik.values.password}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
               required
               autoComplete={mode === "sign-in" ? "current-password" : "new-password"}
-              className="h-9"
+              className={`h-9 ${formik.touched.password && formik.errors.password ? "border-red-500 focus-visible:ring-red-500" : ""}`}
             />
+            {formik.touched.password && formik.errors.password ? (
+              <div className="text-xs text-red-500 mt-0.5">{formik.errors.password}</div>
+            ) : null}
           </div>
 
           {/* Status message */}
@@ -168,3 +195,4 @@ export function AuthForm() {
     </div>
   );
 }
+
